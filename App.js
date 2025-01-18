@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text, ActivityIndicator, View } from 'react-native';
-import { useFonts } from 'expo-font'; // Import the hook
+import { ActivityIndicator, View } from 'react-native';
+import { useFonts } from 'expo-font';
 import LoginScreen from './app/screens/LoginScreen.js';
 import HomeScreen from './app/screens/HomeScreen.js';
+import ScheduleScreen from './app/screens/ScheduleScreen.js';
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +28,7 @@ export default function App() {
       <Stack.Navigator>
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ headerShown: false}} />
       </Stack.Navigator>
     </NavigationContainer>
   );

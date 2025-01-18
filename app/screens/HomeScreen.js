@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, View, Image, SafeAreaView, Text, StatusBar, TouchableOpacity, ScrollView } from 'react-native';
+import { Animated, StyleSheet, View, Image, SafeAreaView, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import colors from '../config/colors';
 
 
-function HomeScreen() {
+function HomeScreen({ navigation }) {
     const scrollX = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -19,10 +19,11 @@ function HomeScreen() {
     const imageWidth = 170;
     const totalWidth = imageWidth * 5;
 
-    const [queueCount, setQueueCount] = useState(0);
+    const [queueCount] = useState(0);
 
     return (
         <SafeAreaView style={styles.container}>
+            <StatusBar />
             <ScrollView contentContainerStyle={styles.scrollContainer} stickyHeaderIndices={[0]}>
 
                 <View style={styles.headerContainer}>
@@ -35,6 +36,7 @@ function HomeScreen() {
                         />
                     </View>
                 </View>
+                
                 <View style={styles.body}>
                     <Text style={styles.headText}>
                         Queue at the comfort of your home.
@@ -80,7 +82,8 @@ function HomeScreen() {
                     </View>
 
                     <TouchableOpacity
-                        style={styles.queueButton}>
+                        style={styles.queueButton}
+                        onPress={() => navigation.navigate('Schedule')}>
                         <Text style={styles.whiteText}>Queue Now</Text>
                     </TouchableOpacity>
                     <View style={styles.section}>
