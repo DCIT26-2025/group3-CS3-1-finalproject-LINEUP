@@ -1,10 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, View, Image, SafeAreaView, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { Animated, StyleSheet, View, Image, SafeAreaView, Text, TouchableOpacity, ScrollView, StatusBar, FlatList, Dimensions } from 'react-native';
 import colors from '../config/colors';
 
 
 function HomeScreen({ navigation }) {
     const scrollX = useRef(new Animated.Value(0)).current;
+
+    const phoneImages = [
+        { id: 1, source: require('../assets/phone1.png') },
+        { id: 2, source: require('../assets/phone2.png') },
+        { id: 3, source: require('../assets/phone3.png') },
+        { id: 4, source: require('../assets/phone4.png') },
+        { id: 5, source: require('../assets/phone5.png') },
+        { id: 6, source: require('../assets/phone6.png') },
+        { id: 7, source: require('../assets/phone7.png') },
+        { id: 8, source: require('../assets/phone8.png') },
+        { id: 9, source: require('../assets/phone9.png') },
+    ];
+
+    const { width } = Dimensions.get('window');
+    const [currentPage, setCurrentPage] = useState(0);
 
     useEffect(() => {
         Animated.loop(
@@ -36,7 +51,7 @@ function HomeScreen({ navigation }) {
                         />
                     </View>
                 </View>
-                
+
                 <View style={styles.body}>
                     <Text style={styles.headText}>
                         Queue at the comfort of your home.
@@ -129,7 +144,7 @@ function HomeScreen({ navigation }) {
                                         ESP32-Based Device
                                     </Text>
                                     <Text style={styles.cardText}>
-                                    An efficient ESP32-powered device delivering real-time updates and reliable performance.
+                                        An efficient ESP32-powered device delivering real-time updates and reliable performance.
                                     </Text>
                                 </View>
                             </View>
@@ -148,7 +163,7 @@ function HomeScreen({ navigation }) {
                                         Cross-Platform Web application
                                     </Text>
                                     <Text style={styles.cardText}>
-                                    Access the queueing system effortlessly on desktops, tablets, and mobile devices.
+                                        Access the queueing system effortlessly on desktops, tablets, and mobile devices.
                                     </Text>
                                 </View>
                             </View>
@@ -158,45 +173,81 @@ function HomeScreen({ navigation }) {
                     <View style={styles.section}>
                         <View style={styles.rowAlign}>
                             <Text style={styles.headText}>Queueing with</Text>
-                            <Image source={require('../assets/homeLogo.png')} style={styles.homeLogo}/>
+                            <Image source={require('../assets/homeLogo.png')} style={styles.homeLogo} />
+                        </View>
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 20, }}>
+                            <FlatList
+                                data={phoneImages}
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                pagingEnabled
+                                snapToAlignment="center"
+                                snapToInterval={Dimensions.get('window').width}
+                                decelerationRate="fast"
+                                keyExtractor={(item) => item.id.toString()}
+                                contentContainerStyle={{
+                                    alignItems: 'center',
+                                }}
+                                renderItem={({ item }) => (
+                                    <View style={styles.carouselItem}>
+                                        <Image source={item.source} style={styles.phoneImage} />
+                                    </View>
+                                )}
+                                onScroll={(event) => {
+                                    const contentOffsetX = event.nativeEvent.contentOffset.x;
+                                    const index = Math.round(contentOffsetX / Dimensions.get('window').width);
+                                    setCurrentPage(index);
+                                }}
+                                scrollEventThrottle={16}
+                            />
+                        </View>
+                        <View style={styles.pagination}>
+                            {phoneImages.map((_, index) => (
+                                <View
+                                    key={index}
+                                    style={[
+                                        styles.paginationDot,
+                                        index === currentPage ? styles.paginationDotActive : null,
+                                    ]}
+                                />
+                            ))}
                         </View>
                     </View>
-
                     <View style={styles.section}>
                         <View style={styles.rowAlign}>
                             <Text style={styles.headText}>Minds behind</Text>
-                            <Image source={require('../assets/homeLogo.png')} style={styles.homeLogo}/>
+                            <Image source={require('../assets/homeLogo.png')} style={styles.homeLogo} />
                         </View>
                         <View style={styles.profile}>
-                            <Image source={require('../assets/nicky.png')}/>
+                            <Image source={require('../assets/nicky.png')} />
                             <Text style={styles.name}>Nicky Ronald Y. Cadalig Jr.</Text>
                             <Text style={styles.role}>Frontend Developer</Text>
                             <View style={styles.socials}>
-                                <Image source={require('../assets/in.png')} style={{marginRight: 10,}}/>
-                                <Image source={require('../assets/github.png')}/>
+                                <Image source={require('../assets/in.png')} style={{ marginRight: 10, }} />
+                                <Image source={require('../assets/github.png')} />
                             </View>
                         </View>
                         <View style={styles.profile}>
-                            <Image source={require('../assets/gem.png')}/>
+                            <Image source={require('../assets/gem.png')} />
                             <Text style={styles.name}>Gabriel Mark A. Capalad</Text>
                             <Text style={styles.role}>UI/UX Designer</Text>
                             <View style={styles.socials}>
-                                <Image source={require('../assets/in.png')} style={{marginRight: 10,}}/>
-                                <Image source={require('../assets/github.png')}/>
+                                <Image source={require('../assets/in.png')} style={{ marginRight: 10, }} />
+                                <Image source={require('../assets/github.png')} />
                             </View>
                         </View>
                         <View style={styles.profile}>
-                            <Image source={require('../assets/alvir.png')}/>
+                            <Image source={require('../assets/alvir.png')} />
                             <Text style={styles.name}>Peter Alvir M. Gonzales</Text>
                             <Text style={styles.role}>Backend Developer</Text>
                             <View style={styles.socials}>
-                                <Image source={require('../assets/in.png')} style={{marginRight: 10,}}/>
-                                <Image source={require('../assets/github.png')}/>
+                                <Image source={require('../assets/in.png')} style={{ marginRight: 10, }} />
+                                <Image source={require('../assets/github.png')} />
                             </View>
                         </View>
                     </View>
                 </View>
-                <View style={styles.footer}/>
+                <View style={styles.footer} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -331,6 +382,31 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         margin: 10,
+    },
+    carouselItem: {
+        width: Dimensions.get('window').width,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    phoneImage: {
+        width: Dimensions.get('window').width * 0.7,
+        height: Dimensions.get('window').width * 1.4,
+        resizeMode: 'contain',
+    },
+    pagination: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 10,
+    },
+    paginationDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#d3d3d3',
+        marginHorizontal: 5,
+    },
+    paginationDotActive: {
+        backgroundColor: colors.baseBlue,
     },
     footer: {
         backgroundColor: colors.baseBlue,
