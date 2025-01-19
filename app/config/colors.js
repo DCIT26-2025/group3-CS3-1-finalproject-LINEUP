@@ -5,5 +5,7 @@ export default {
     grayButton: "#6C757D",
     fontColor: "#212529",
     graytext: "#68717A",
-    white: "#fff"
+    white: "#fff",
+    lightBlue: "#6EA8FE",
+    backgroundGray: '#DEE2E6',
 }

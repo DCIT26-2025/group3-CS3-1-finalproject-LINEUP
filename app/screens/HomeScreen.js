@@ -196,9 +196,7 @@ function HomeScreen({ navigation }) {
                         </View>
                     </View>
                 </View>
-                <View style={styles.footer}>
-
-                </View>
+                <View style={styles.footer}/>
             </ScrollView>
         </SafeAreaView>
     );
@@ -337,5 +335,6 @@ const styles = StyleSheet.create({
     footer: {
         backgroundColor: colors.baseBlue,
         padding: 30,
+        flex: 1
     },
 });
