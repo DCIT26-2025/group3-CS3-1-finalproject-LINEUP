@@ -1,14 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, Image, Modal, TouchableOpacity } from 'react-native';
 import Swiper from 'react-native-swiper';
 import colors from '../config/colors';
-
+import { supabase } from '../config/supabaseClient'
 const ScheduleScreen = ({ navigation }) => {
     const swiperRef = useRef(null);
     const services = ['Licensing', 'Registration', 'LETAS'];
-    const queueNumbers = ['40', '70', '95'];
-    const specificServices = ["student-Driver's Permit", "New Driver's License (Non-professional)", "Conductor's License"];
-
+    const [specificServices, setspecificServices] = useState([]);
     const [selectedServices, setSelectedServices] = useState(Array(7).fill(null));
     const [isModalVisible, setModalVisible] = useState(false);
     const [selectedDayIndex, setSelectedDayIndex] = useState(null);
@@ -36,6 +34,186 @@ const ScheduleScreen = ({ navigation }) => {
             console.warn('Swiper is not yet initialized');
         }
     };
+
+        const [mainservice, setServices] = useState([
+          { id: 1, key: "Licensing", limit: "DriverLicenseLimit"},
+          { id: 2, key: "Registration", limit: "VehicleRegistrationLimit"},
+          { id: 3, key: "LETAS", limit: "LawEnforcementLimit"},
+        ]);
+      
+        const [serviceCounts, setServiceCounts] = useState({});
+        const [serviceLimits, setServiceLimits] = useState({});
+        const [error, setError] = useState(null);
+    
+    useEffect(() => {
+        const fetchQueue = async () => {
+            
+            const today = new Date();
+            const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
+            const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
+            const manilaTime = new Date(utcDate.getTime() + manilaOffset);
+            
+            const dateRanges = Array.from({ length: 7 }, (_, i) => {
+                const currentDay = new Date(manilaTime);
+                currentDay.setDate(manilaTime.getDate() + i );
+                const start = new Date(currentDay);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(currentDay);
+                end.setHours(23, 59, 59, 999);
+                return { start, end };
+              });
+
+
+            const { data: tickets, error: ticketError } = await supabase
+            .from("tickets")
+            .select("service_id, parent_service_id, queue_date");
+
+            if (ticketError) {
+                console.error("Error fetching tickets:", error);
+                return;
+            }
+
+            // Process tickets locally
+            const countsByService = {};
+            mainservice.forEach((service) => {
+            const counts = Array(7).fill(0);
+            dateRanges.forEach((range, i) => {
+                counts[i] = tickets.filter((ticket) => {
+                const queueDate = new Date(ticket.queue_date);
+                return (
+                    (ticket.service_id === service.id ||
+                    ticket.parent_service_id === service.id) &&
+                    queueDate >= new Date(range.start) &&
+                    queueDate <= new Date(range.end)
+                );
+                }).length;
+            });
+            countsByService[service.key] = counts;
+            });
+
+            setServiceCounts(countsByService);
+
+            // Fetch Limits
+            const { data: limits, error: limitError } = await supabase
+            .from("queue_schedules")
+            .select("date, service_name, limit");
+
+            if (limitError) {
+                console.error("Error fetching limits:", error);
+            }
+
+            // Process limits locally
+            const now = new Date();
+            const date = new Date(now);
+            const year = date.getFullYear();
+            const day = String(date.getDate()).padStart(2, "0");
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const formattedQueueDate = `${year}-${month}-${day}`;
+            const startDate = new Date(formattedQueueDate);
+            const daysRange = 7; 
+
+            const newLimits = {};
+            mainservice.forEach((service) => {
+                newLimits[service.limit] = new Array(daysRange).fill(0);
+            
+                limits
+                    .filter((item) => item.service_name + "Limit" === service.limit)
+                    .forEach((item) => {
+                        const itemDate = new Date(item.date);
+                        const dayIndex = Math.floor(
+                            (itemDate - startDate) / (1000 * 60 * 60 * 24)
+                        );
+                        if (dayIndex >= 0 && dayIndex < daysRange) {
+                            newLimits[service.limit][dayIndex] = item.limit;
+                        }
+                    });
+            });
+            setServiceLimits(newLimits);
+        }
+        fetchQueue()
+    }, [])
+
+    useEffect(() => {
+        const fetchService = async () => {
+            let parent_id;
+
+            if (selectedServices[0] === "Licensing") {
+              parent_id = 1;
+            } else if (selectedServices[0] === "Registration") {
+              parent_id = 2;
+            } else if (selectedServices[0] === "LETAS") {
+              parent_id = 3;
+            }
+            const { data, error } = await supabase
+              .from("services")
+              .select("service_name")
+              .eq("parent_service_id", parent_id);
+
+            setspecificServices(data.map(service => service.service_name));
+        }
+        fetchService()
+    }, [selectedServices])
+
+
+    async function insertTicket() {
+        const {
+            data: { session }
+        } = await supabase.auth.getSession();
+
+        const { data: checkUser } = await supabase
+            .from("tickets")
+            .select("email")
+            .eq("email", session.user.email);
+        
+        if (checkUser.length !== 0) {
+            alert("You already queued!")
+            return
+        }
+        let service;
+        let parent_service;
+        let transaction;
+        let queue_time;
+
+        const today = new Date();
+        const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
+        const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
+        const manilaTime = new Date(utcDate.getTime() + manilaOffset);
+        
+        const dateString = manilaTime.toISOString().split('T')[0]; 
+
+        const { data, error: specificError } = await supabase
+          .from("services")
+          .select(
+            "service_id, parent_service_id, service_name, transaction_time"
+          )
+          .eq("service_name",selectedSpecificService);
+
+        parent_service = data[0].parent_service_id;
+        service = data[0].service_id;
+        transaction = data[0].service_name;
+        queue_time = data[0].transaction_time;
+
+        const { count, error: countError } = await supabase
+          .from("tickets")
+          .select("service_id", { count: "exact", head: true })
+          .eq("parent_service_id", parent_service)
+          .gte("queue_date", `${dateString} 00:00:00`)
+          .lte("queue_date", `${dateString} 23:59:59`);
+
+        const { error } = await supabase.from("tickets").insert({
+          ticket_number: count + 1,
+          service_id: service,
+          parent_service_id: parent_service,
+          email: session.user.email,
+          queue_date: dateString,
+          transaction: transaction,
+          status: "Pending",
+          queue_time: queue_time,
+          reference_number: Math.floor(Math.random() * 900000) + 100000,
+        })
+        setModalVisible(false)
+        setViewModalVisible(true)
+    }
 
     const generateCardContent = (day, date, dayIndex) => (
         <View style={{ flex: 1 }}>
@@ -72,11 +250,14 @@ const ScheduleScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.line}></View>
                 <View style={styles.servicesArea}>
-                    {services.map((service, index) => {
-                        const queueNumber = parseInt(queueNumbers[index], 10);
-                        const queueColor = queueNumber < 50 ? 'green' : queueNumber < 90 ? 'orange' : 'red';
-                        const isSelected = selectedServices[dayIndex] === service;
-
+                    {mainservice.map((service, index) => {
+                        const serviceKey = service.key;
+                        const limitKey = service.limit;
+                        const queueNumber = serviceCounts[serviceKey]?.[dayIndex] || 0;
+                        const queueLimit = serviceLimits[limitKey]?.[dayIndex] || 100; // Default limit to 100 if undefined
+                        const queueColor = queueNumber < queueLimit * 0.5 ? 'green' : queueNumber < queueLimit * 0.9 ? 'orange' : 'red';
+                        const isSelected = selectedServices[dayIndex] === serviceKey;
+    
                         return (
                             <TouchableOpacity
                                 key={index}
@@ -84,12 +265,12 @@ const ScheduleScreen = ({ navigation }) => {
                                     styles.serviceBox,
                                     { backgroundColor: isSelected ? colors.darkBlue : colors.lightBlue }
                                 ]}
-                                onPress={() => selectServiceForDay(dayIndex, service)}
+                                onPress={() => selectServiceForDay(dayIndex, serviceKey)}
                             >
-                                <Text style={styles.serviceName}>{service}</Text>
+                                <Text style={styles.serviceName}>{serviceKey}</Text>
                                 <View style={styles.queueInfo}>
-                                    <Text style={[styles.queueNumber, { color: queueColor }]}>{queueNumbers[index]}</Text>
-                                    <Text style={[styles.queueNumber, { color: queueColor }]}>/100</Text>
+                                    <Text style={[styles.queueNumber, { color: queueColor }]}>{queueNumber}</Text>
+                                    <Text style={[styles.queueNumber, { color: queueColor }]}>/{queueLimit}</Text>
                                 </View>
                             </TouchableOpacity>
                         );
@@ -99,6 +280,7 @@ const ScheduleScreen = ({ navigation }) => {
             <View style={{ flex: 1 }}></View>
         </View>
     );
+    
 
     const handleSpecificServiceSelect = (specificService) => {
         setSelectedSpecificService(specificService); // Set selected specific service
@@ -188,7 +370,7 @@ const ScheduleScreen = ({ navigation }) => {
                             </TouchableOpacity>
                             <TouchableOpacity
                                 style={styles.modalFooterNext}
-                                onPress={() => [setViewModalVisible(true), setModalVisible(false)]}
+                                onPress={insertTicket}
                             >
                                 <Text style={styles.modalFooterButtonText}>Next</Text>
                             </TouchableOpacity>

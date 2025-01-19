@@ -19,10 +19,14 @@
       "adaptiveIcon": {
         "foregroundImage": "./app/assets/lineupLogo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.DoneWithIt"
     },
     "web": {
       "favicon": "./app/assets/lineupLogo.png"
-    }
+    },
+    "plugins": [
+      "@react-native-google-signin/google-signin"
+    ]
   }
 }

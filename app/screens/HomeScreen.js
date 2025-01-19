@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View, Image, SafeAreaView, Text, TouchableOpacity, ScrollView, StatusBar, FlatList, Dimensions } from 'react-native';
 import colors from '../config/colors';
-
+import {supabase } from "../config/supabaseClient";
 
 function HomeScreen({ navigation }) {
     const scrollX = useRef(new Animated.Value(0)).current;
@@ -34,8 +34,32 @@ function HomeScreen({ navigation }) {
     const imageWidth = 170;
     const totalWidth = imageWidth * 5;
 
-    const [queueCount] = useState(0);
+    const [queueCount, setQueueCount] = useState(0);
 
+    useEffect(() => {
+        const fetchQueue = async () => {
+            const today = new Date();
+            const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
+            const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
+            const manilaTime = new Date(utcDate.getTime() + manilaOffset);
+            
+            const dateString = manilaTime.toISOString().split('T')[0]; 
+
+            console.log(manilaTime)
+            const { count, error } = await supabase
+            .from("tickets")
+            .select("ticket_id", { count: "exact", head: true })
+            .eq("queue_date", dateString);
+
+            if (count) {
+                setQueueCount(count);
+            }
+            if (error) {
+                console.error("Error fetching count:", error);
+            }
+        }
+        fetchQueue()
+    }, [])
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar />
@@ -125,7 +149,7 @@ function HomeScreen({ navigation }) {
                                         Two-Way Queueing System
                                     </Text>
                                     <Text style={styles.cardText}>
-                                        This is a wider card with supporting text below as a natural lead-in to additional content. This content is a little bit longer.
+                                    Efficiently manage queues with seamless customer-staff communication.
                                     </Text>
                                 </View>
                             </View>

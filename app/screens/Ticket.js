@@ -1,17 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, } from 'react';
 import { SafeAreaView, StyleSheet, Text, View, Image, TextInput, TouchableOpacity } from 'react-native';
 import colors from '../config/colors';
-
-function Ticket() {
+import { supabase } from '../config/supabaseClient'
+function Ticket({ navigation }) {
     const [hasTicket, setHasTicket] = useState(true); // Change to `false` to simulate no ticket
-    const ticketDetails = {
-        queueNumber: '001',
-        transaction: "Student Driver's Permit",
-        estimatedWaitTime: '01 hours 50 minutes 00 seconds',
-        referenceNumber: '2024231102001',
-        status: 'Pending',
-    };
+    const [queueNumber, setQueueNumber] = useState('');
+    const [transaction, setTransaction] = useState("");
+    const [estimatedWaitTime, setEstimatedWaitTime] = useState('');
+    const [referenceNumber, setReferenceNumber] = useState('');
+    const [status, setStatus] = useState('');
 
+    function convertMinutes(minutes) {
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+
+        if (hours === 0) {
+          if (remainingMinutes === 1) return `${remainingMinutes} minute`
+          return `${remainingMinutes} minutes`;
+        } else if (remainingMinutes === 0) {
+          if (hours === 1) return `${hours} hour`
+          return `${hours} hours`;
+        } else {
+          return `${hours} hours and ${remainingMinutes} minutes`;
+        }
+    }
+    useEffect (() => {
+        const fetchTicket = async () => {
+            const {data: { session }} = await supabase.auth.getSession();
+
+            if (session) {
+                const { data, error } = await supabase
+                .from("tickets")
+                .select(
+                    "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
+                )
+                .eq("email", session.user.email);
+                
+                if (data && data.length > 0) {
+                        setQueueNumber(String(data[0].ticket_number).padStart(3, "0"))
+                        setTransaction(data[0].transaction)
+                        setEstimatedWaitTime(convertMinutes(data[0].queue_time))
+                        setReferenceNumber(data[0].reference_number)
+                        setStatus( data[0].status)
+                } else {
+                    setHasTicket(false);
+                }
+            }
+        }
+        fetchTicket()
+    }, [])
+
+    async function findRef() {
+        const { data, error } = await supabase
+        .from("tickets")
+        .select(
+          "ticket_number, transaction, queue_time, reference_number, status, queue_date"
+        )
+        .eq("reference_number", referenceNumber);
+
+      if (data && data.length > 0) {
+        setQueueNumber(String(data[0].ticket_number).padStart(3, "0"));
+        setTransaction(data[0].transaction)
+        setEstimatedWaitTime(convertMinutes(data[0].queue_time))
+        setReferenceNumber(data[0].reference_number)
+        setStatus( data[0].status)
+      }
+      setHasTicket(true);
+    }
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
@@ -34,27 +89,29 @@ function Ticket() {
                             <View style={styles.ticketBorder}>
                                 <View style={styles.ticketDetail}>
                                     <Text style={styles.label}>Queue Number:</Text>
-                                    <Text style={styles.value}>{ticketDetails.queueNumber}</Text>
+                                    <Text style={styles.value}>{queueNumber}</Text>
                                 </View>
                                 <View style={styles.ticketDetail}>
                                     <Text style={styles.label}>Transaction:</Text>
-                                    <Text style={styles.value}>{ticketDetails.transaction}</Text>
+                                    <Text style={styles.value}>{transaction}</Text>
                                 </View>
                                 <View style={styles.ticketDetail}>
                                     <Text style={styles.label}>Estimated Waiting Time:</Text>
-                                    <Text style={styles.value}>{ticketDetails.estimatedWaitTime}</Text>
+                                    <Text style={styles.value}>{estimatedWaitTime}</Text>
                                 </View>
                                 <View style={styles.ticketDetail}>
                                     <Text style={styles.label}>Reference Number:</Text>
-                                    <Text style={styles.value}>{ticketDetails.referenceNumber}</Text>
+                                    <Text style={styles.value}>{referenceNumber}</Text>
                                 </View>
                                 <View style={styles.ticketDetail}>
                                     <Text style={styles.label}>Status:</Text>
-                                    <Text style={styles.value}>{ticketDetails.status}</Text>
+                                    <Text style={styles.value}>{status}</Text>
                                 </View>
                             </View>
                         </View>
-                        <Image source={require('../assets/refresh.png')} onPress={() => console.log('Refresh Ticket')} style={styles.refreshButton} />
+                        <TouchableOpacity onPress={findRef}>
+                            <Image source={require('../assets/refresh.png')} style={styles.refreshButton} />
+                        </TouchableOpacity>
                     </View>
                 ) : (
                     // Enter Reference Number UI
@@ -63,12 +120,15 @@ function Ticket() {
                             <View style={styles.ticketBorder}>
                                 <Text style={styles.ticketText}>Enter Reference Number</Text>
                                 <TextInput
-                                    placeholder="732987329732"
+                                    placeholder="Reference Number"
                                     style={styles.input}
+                                    onChangeText={(referenceNumber) => setReferenceNumber(referenceNumber)}
+                                    value={referenceNumber}
                                     keyboardType="decimal-pad"
                                 />
                                 <TouchableOpacity style={styles.ticketButtonContainer}>
-                                    <Text style={styles.ticketButton}>Confirm</Text>
+                                    <Text style={styles.ticketButton}
+                                     onPress={findRef}>Confirm</Text>
                                 </TouchableOpacity>
                                 <Text
                                     style={{
@@ -81,11 +141,14 @@ function Ticket() {
                                     ---------- or ----------
                                 </Text>
                                 <TouchableOpacity style={styles.ticketButtonContainer}>
-                                    <Text style={styles.ticketButton}>Queue Now</Text>
+                                    <Text style={styles.ticketButton}
+                                    onPress={() => navigation.navigate('Schedule')}>Queue Now</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
-                        <Image source={require('../assets/refresh.png')} onPress={() => console.log('Refresh Ticket')} style={styles.refreshButton} />
+                        <TouchableOpacity onPress={findRef}>
+                            <Image source={require('../assets/refresh.png')} style={styles.refreshButton} />
+                        </TouchableOpacity>
                     </View>
                 )}
             </View>

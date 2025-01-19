@@ -2,22 +2,70 @@ import React, { useState } from 'react';
 import { SafeAreaView, View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import colors from '../config/colors';
 import { useFonts } from 'expo-font';
+import { supabase } from '../config/supabaseClient'
 
-function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation }) {
     const [fontsLoaded] = useFonts({
         'Inter-Regular': require('../assets/fonts/Inter_18pt-Regular.ttf'),
         'Inter-Bold': require('../assets/fonts/Inter_18pt-Bold.ttf'),
       });
-    
-      if (!fontsLoaded) {
-        return (
-          <SafeAreaView style={styles.container}>
-            <ActivityIndicator size="large" color={colors.baseBlue} />
-          </SafeAreaView>
-        );
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [confirmpassword, setConfirmPassword] = useState('')
+
+    async function signInWithEmail() {
+        const { error } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password,
+        })
+
+        if (error) {
+            alert(error.message)
+            return
+        }
+        navigation.navigate('Home')
+    }
+
+    async function signUpWithEmail() {
+        const {
+            data: { session },
+            error,
+        } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+        })
+
+        if (error) {
+            alert(error.message) 
+            return
+        }
+        if (password == confirmpassword) {
+            if (!session) {
+                alert('You are now registered!') 
+                navigation.navigate('Home')
+            }
+        }
+    }
+
+    async function googleSignIn() {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+        });
+
+        if (error) {
+          alert(error.message);
+        }
       }
+    if (!fontsLoaded) {
+        return (
+            <SafeAreaView style={styles.container}>
+            <ActivityIndicator size="large" color={colors.baseBlue} />
+            </SafeAreaView>
+        );
+    }
 
     const [isLogin, setIsLogin] = useState(true);
+
     return (
         <SafeAreaView style={styles.container}>
             <Image source={require('../assets/lineupLogo.png')} style={styles.logo} />
@@ -37,41 +85,50 @@ function LoginScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            <TextInput placeholder="Email" style={styles.input} keyboardType="email-address" />
-            <TextInput placeholder="Password" style={styles.input} secureTextEntry />
+            <TextInput 
+                placeholder="Email" 
+                style={styles.input} 
+                keyboardType="email-address"
+                onChangeText={(text) => setEmail(text)}
+                value={email}
+                autoCapitalize={'none'}
+                 />
+            <TextInput 
+                placeholder="Password" 
+                style={styles.input} secureTextEntry
+                onChangeText={(text) => setPassword(text)}
+                value={password}
+                autoCapitalize={'none'}
+                 />
             {!isLogin && (
-                <TextInput placeholder="Confirm Password" style={styles.input} secureTextEntry />
+                <TextInput 
+                placeholder="Confirm Password" 
+                style={styles.input} secureTextEntry 
+                onChangeText={(text) => setConfirmPassword(text)}
+                value={confirmpassword}
+                autoCapitalize={'none'}
+                />
             )}
 
             <TouchableOpacity
                 style={styles.loginButton}
-                onPress={() => {
-                    if (isLogin) {
-                        navigation.navigate('Home'); 
-                    } else {
-                        navigation.navigate('Home')
-                    }
-                }}
+                onPress={isLogin ? signInWithEmail : signUpWithEmail}
             >
                 <Text style={styles.loginButtonText}>{isLogin ? 'Login' : 'Register'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.googleButton} onPress={() => {
-                alert("no function yet")
-            }}>
+            <TouchableOpacity style={styles.googleButton} onPress={googleSignIn}>
                 <Image
                     source={require('../assets/googleIcon.png')}
                     style={styles.googleIcon}
                 />
                 <Text style={styles.googleButtonText}>
-                    {isLogin ? 'Login with Google' : 'Register with Google'}
+                    {isLogin ? 'Login with Google' : 'Login with Google'}
                 </Text>
             </TouchableOpacity>
         </SafeAreaView>
     );
 }
-
-export default LoginScreen;
 
 const styles = StyleSheet.create({
     container: {
