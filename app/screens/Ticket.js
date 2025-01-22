@@ -2,6 +2,7 @@ import React, { useState, useEffect, } from 'react';
 import { SafeAreaView, StyleSheet, Text, View, Image, TextInput, TouchableOpacity } from 'react-native';
 import colors from '../config/colors';
 import { supabase } from '../config/supabaseClient'
+
 function Ticket({ navigation }) {
     const [hasTicket, setHasTicket] = useState(true); // Change to `false` to simulate no ticket
     const [queueNumber, setQueueNumber] = useState('');
@@ -10,9 +11,40 @@ function Ticket({ navigation }) {
     const [referenceNumber, setReferenceNumber] = useState('');
     const [status, setStatus] = useState('');
 
-    function convertMinutes(minutes) {
-        const hours = Math.floor(minutes / 60);
-        const remainingMinutes = minutes % 60;
+    async function convertMinutes(minutes, transaction, ticket_number) {
+        const now = new Date();
+        const date = new Date(now);
+        const year = date.getFullYear();
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const formattedQueueDate = `${year}-${month}-${day}`;
+
+        const { data: transactions, error: transactionError } = await supabase
+          .from("tickets")
+          .select("parent_service_id")
+          .eq("transaction", transaction)
+        
+        const parent_id = transactions[0].parent_service_id;
+        
+        const { data, error } = await supabase
+          .from("tickets")
+          .select("queue_time, ticket_number")
+          .eq("parent_service_id", parent_id)
+          .gte("queue_date", `${formattedQueueDate} 00:00:00`)
+          .lte("queue_date", `${formattedQueueDate} 23:59:59`)
+          .neq("status", "Reject")
+          .neq("status", "Complete")
+
+        const filteredData = data.filter(
+          (item) => item.ticket_number < ticket_number
+        );
+    
+        const totalRemainingTime = Math.ceil((filteredData.length) / 10);
+        
+        
+        const totalMinutes = minutes + (totalRemainingTime * 60)
+        const hours = Math.floor(totalMinutes / 60);
+        const remainingMinutes = totalMinutes % 60;
 
         if (hours === 0) {
           if (remainingMinutes === 1) return `${remainingMinutes} minute`
@@ -39,7 +71,8 @@ function Ticket({ navigation }) {
                 if (data && data.length > 0) {
                         setQueueNumber(String(data[0].ticket_number).padStart(3, "0"))
                         setTransaction(data[0].transaction)
-                        setEstimatedWaitTime(convertMinutes(data[0].queue_time))
+                        setEstimatedWaitTime(await convertMinutes(data[0].queue_time, data[0].transaction,
+                            data[0].ticket_number))
                         setReferenceNumber(data[0].reference_number)
                         setStatus( data[0].status)
                 } else {
@@ -61,7 +94,8 @@ function Ticket({ navigation }) {
       if (data && data.length > 0) {
         setQueueNumber(String(data[0].ticket_number).padStart(3, "0"));
         setTransaction(data[0].transaction)
-        setEstimatedWaitTime(convertMinutes(data[0].queue_time))
+        setEstimatedWaitTime(await convertMinutes(data[0].queue_time, data[0].transaction,
+            data[0].ticket_number))
         setReferenceNumber(data[0].reference_number)
         setStatus( data[0].status)
       }

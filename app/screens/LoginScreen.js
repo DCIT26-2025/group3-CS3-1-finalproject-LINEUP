@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView, View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import colors from '../config/colors';
 import { useFonts } from 'expo-font';
 import { supabase } from '../config/supabaseClient'
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
     const [fontsLoaded] = useFonts({
@@ -47,15 +51,51 @@ export default function LoginScreen({ navigation }) {
         }
     }
 
-    async function googleSignIn() {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-        });
-
-        if (error) {
-          alert(error.message);
+    const googleSignIn = async () => {
+        try {
+          // Generate the redirect URL specific to your environment
+          const redirectUrl = Linking.createURL('auth/callback');
+          
+          // Start the OAuth sign-in process
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: redirectUrl, // Ensure this matches your Supabase redirect URL
+            },
+          });
+      
+          if (error) {
+            console.error('Error during sign-in:', error.message);
+            return;
+          }
+      
+          // Open the OAuth URL in the system browser
+          const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      
+          if (result.type === 'success' && result.url) {
+            // Retrieve the active session
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+            if (sessionError) {
+              console.error('Error retrieving session:', sessionError.message);
+              return;
+            }
+      
+            if (session) {
+              console.log('Sign-in successful:', session);
+              alert(`Welcome, ${session.user.email}`);
+              navigation.navigate('Home'); // Navigate to the Home screen
+            } else {
+              console.error('No active session found after sign-in.');
+            }
+          } else {
+            console.log('User cancelled the sign-in process.');
+          }
+        } catch (error) {
+          console.error('Unexpected error during Google sign-in:', error.message);
         }
-      }
+      };      
+      
     if (!fontsLoaded) {
         return (
             <SafeAreaView style={styles.container}>

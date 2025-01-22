@@ -3,6 +3,7 @@ import { SafeAreaView, View, Text, StyleSheet, Image, Modal, TouchableOpacity } 
 import Swiper from 'react-native-swiper';
 import colors from '../config/colors';
 import { supabase } from '../config/supabaseClient'
+
 const ScheduleScreen = ({ navigation }) => {
     const swiperRef = useRef(null);
     const services = ['Licensing', 'Registration', 'LETAS'];
@@ -57,12 +58,11 @@ const ScheduleScreen = ({ navigation }) => {
                 const currentDay = new Date(manilaTime);
                 currentDay.setDate(manilaTime.getDate() + i );
                 const start = new Date(currentDay);
-                start.setHours(0, 0, 0, 0);
+                start.setUTCHours(0, 0, 0, 0);
                 const end = new Date(currentDay);
-                end.setHours(23, 59, 59, 999);
+                end.setUTCHours(23, 59, 59, 999);
                 return { start, end };
               });
-
 
             const { data: tickets, error: ticketError } = await supabase
             .from("tickets")
