@@ -21,7 +21,7 @@ const ScheduleScreen = ({ navigation }) => {
         setDisabledDays(updatedDisabledDays);
     };
 
-    const disableDays = [1, 6]; // Example: Disable Sunday (index 0) and Saturday (index 6)
+    const disableDays = [2, 3]; // Example: Disable Sunday (index 0) and Saturday (index 6)
     const updatedDisabledDays = disabledDays.map((_, index) => disableDays.includes(index));
     
 
@@ -57,7 +57,33 @@ const ScheduleScreen = ({ navigation }) => {
     const [serviceLimits, setServiceLimits] = useState({});
     const [error, setError] = useState(null);
 
+    async function signoff() {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session) {
+            alert("You are not logged in.");
+            return;
+        }
+    
+        try {
+            const { error } = await supabase.auth.signOut();
+    
+            if (error) {
+                // Display the error message
+                alert(`Error signing out: ${error.message || JSON.stringify(error)}`);
+            } else {
+                console.log("Signed off successfully");
+                // Navigate to the Login screen after sign-off
+                navigation.navigate('Login');
+            }
+        } catch (error) {
+            console.error("Signoff failed:", error);
+            alert(`Signoff failed: ${error.message || JSON.stringify(error)}`);
+        }
+    }
+
     useEffect(() => {
+                
         const fetchQueue = async () => {
 
             const today = new Date();
@@ -358,7 +384,7 @@ const ScheduleScreen = ({ navigation }) => {
                     <Text style={styles.whiteText} onPress={() => navigation.navigate('Ticket')}>
                         MyTicket
                     </Text>
-                    <TouchableOpacity onPress={alert}>
+                    <TouchableOpacity onPress={signoff}>
                         <Image source={require('../assets/logout.png')} />
                     </TouchableOpacity>
                 </View>
