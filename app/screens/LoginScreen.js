@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     toggleButton: {
-        flex: 1,
+        width: '45%',
         paddingVertical: 10,
         borderWidth: 1,
         borderColor: colors.darkBlue,
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
         color: colors.white,
     },
     input: {
-        width: '100%',
+        width: '90%',
         height: 40,
         borderColor: colors.grayBorder,
         borderWidth: 1,
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     },
     loginButton: {
         backgroundColor: colors.darkBlue,
-        width: '100%',
+        width: '90%',
         height: 40,
         borderRadius: 5,
         justifyContent: 'center',
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderRadius: 5,
         height: 40,
-        width: '100%',
+        width: '90%',
         justifyContent: 'center',
     },
     googleIcon: {

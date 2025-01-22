@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, View, Image, SafeAreaView, Text, TouchableOpacity, ScrollView, StatusBar, FlatList, Dimensions } from 'react-native';
 import colors from '../config/colors';
-import {supabase } from "../config/supabaseClient";
+import { supabase } from "../config/supabaseClient";
 
 function HomeScreen({ navigation }) {
     const scrollX = useRef(new Animated.Value(0)).current;
@@ -42,13 +42,13 @@ function HomeScreen({ navigation }) {
             const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
             const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
             const manilaTime = new Date(utcDate.getTime() + manilaOffset);
-            
-            const dateString = manilaTime.toISOString().split('T')[0]; 
+
+            const dateString = manilaTime.toISOString().split('T')[0];
 
             const { count, error } = await supabase
-            .from("tickets")
-            .select("ticket_id", { count: "exact", head: true })
-            .eq("queue_date", dateString);
+                .from("tickets")
+                .select("ticket_id", { count: "exact", head: true })
+                .eq("queue_date", dateString);
 
             if (count) {
                 setQueueCount(count);
@@ -60,34 +60,34 @@ function HomeScreen({ navigation }) {
         fetchQueue()
     }, [])
 
-        useEffect (() => {
-            const fetchTicket = async () => {
-                const {data: { session }} = await supabase.auth.getSession();
-    
-                if (session) {
-                    const { data, error } = await supabase
+    useEffect(() => {
+        const fetchTicket = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session) {
+                const { data, error } = await supabase
                     .from("tickets")
                     .select(
                         "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
                     )
                     .eq("email", session.user.email);
-                    
-                    if (data && data.length > 0) {
-                            subscribeUpdates()
-                    } 
+
+                if (data && data.length > 0) {
+                    subscribeUpdates()
                 }
             }
-            fetchTicket()
-        }, [])
-    
-        function subscribeUpdates() {
-            const tickets = supabase.channel('custom-update-channel')
+        }
+        fetchTicket()
+    }, [])
+
+    function subscribeUpdates() {
+        const tickets = supabase.channel('custom-update-channel')
             .on(
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'tickets' },
                 (payload) => {
                     const { email, status } = payload.new; // Extract email and status from the updated record
-    
+
                     // Compare the payload email with the logged-in user's email
                     supabase.auth.getSession().then(({ data: { session } }) => {
                         if (session && email === session.user.email) {
@@ -97,7 +97,7 @@ function HomeScreen({ navigation }) {
                 }
             )
             .subscribe()
-        }
+    }
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar />
@@ -105,12 +105,19 @@ function HomeScreen({ navigation }) {
 
                 <View style={styles.headerContainer}>
                     <View style={styles.header}>
-                        <Image
-                            source={require('../assets/lightLineupLogo.png')}
-                        />
-                        <Image
-                            source={require('../assets/menu.png')}
-                        />
+                        <View style={{ flex: 2 }}>
+                            <Image
+                                source={require('../assets/lightLineupLogo.png')}
+                            />
+                        </View>
+                        <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={styles.whiteText} onPress={() => navigation.navigate('Ticket')}>
+                                MyTicket
+                            </Text>
+                            <TouchableOpacity onPress={alert}>
+                                <Image source={require('../assets/logout.png')} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
 
@@ -187,7 +194,7 @@ function HomeScreen({ navigation }) {
                                         Two-Way Queueing System
                                     </Text>
                                     <Text style={styles.cardText}>
-                                    Efficiently manage queues with seamless customer-staff communication.
+                                        Efficiently manage queues with seamless customer-staff communication.
                                     </Text>
                                 </View>
                             </View>
@@ -328,7 +335,6 @@ const styles = StyleSheet.create({
     header: {
         backgroundColor: colors.baseBlue,
         padding: 15,
-        justifyContent: 'space-between',
         flexDirection: 'row',
         alignItems: 'center',
     },

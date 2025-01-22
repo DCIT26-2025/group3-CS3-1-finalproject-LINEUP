@@ -20,62 +20,62 @@ function Ticket({ navigation }) {
         const formattedQueueDate = `${year}-${month}-${day}`;
 
         const { data: transactions, error: transactionError } = await supabase
-          .from("tickets")
-          .select("parent_service_id")
-          .eq("transaction", transaction)
-        
+            .from("tickets")
+            .select("parent_service_id")
+            .eq("transaction", transaction)
+
         const parent_id = transactions[0].parent_service_id;
-        
+
         const { data, error } = await supabase
-          .from("tickets")
-          .select("queue_time, ticket_number")
-          .eq("parent_service_id", parent_id)
-          .gte("queue_date", `${formattedQueueDate} 00:00:00`)
-          .lte("queue_date", `${formattedQueueDate} 23:59:59`)
-          .neq("status", "Reject")
-          .neq("status", "Complete")
+            .from("tickets")
+            .select("queue_time, ticket_number")
+            .eq("parent_service_id", parent_id)
+            .gte("queue_date", `${formattedQueueDate} 00:00:00`)
+            .lte("queue_date", `${formattedQueueDate} 23:59:59`)
+            .neq("status", "Reject")
+            .neq("status", "Complete")
 
         const filteredData = data.filter(
-          (item) => item.ticket_number < ticket_number
+            (item) => item.ticket_number < ticket_number
         );
-    
+
         const totalRemainingTime = Math.ceil((filteredData.length) / 10);
-        
-        
+
+
         const totalMinutes = minutes + (totalRemainingTime * 60)
         const hours = Math.floor(totalMinutes / 60);
         const remainingMinutes = totalMinutes % 60;
 
         if (hours === 0) {
-          if (remainingMinutes === 1) return `${remainingMinutes} minute`
-          return `${remainingMinutes} minutes`;
+            if (remainingMinutes === 1) return `${remainingMinutes} minute`
+            return `${remainingMinutes} minutes`;
         } else if (remainingMinutes === 0) {
-          if (hours === 1) return `${hours} hour`
-          return `${hours} hours`;
+            if (hours === 1) return `${hours} hour`
+            return `${hours} hours`;
         } else {
-          return `${hours} hours and ${remainingMinutes} minutes`;
+            return `${hours} hours and ${remainingMinutes} minutes`;
         }
     }
-    useEffect (() => {
+    useEffect(() => {
         const fetchTicket = async () => {
-            const {data: { session }} = await supabase.auth.getSession();
+            const { data: { session } } = await supabase.auth.getSession();
 
             if (session) {
                 const { data, error } = await supabase
-                .from("tickets")
-                .select(
-                    "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
-                )
-                .eq("email", session.user.email);
-                
+                    .from("tickets")
+                    .select(
+                        "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
+                    )
+                    .eq("email", session.user.email);
+
                 if (data && data.length > 0) {
-                        setQueueNumber(String(data[0].ticket_number).padStart(3, "0"))
-                        setTransaction(data[0].transaction)
-                        setEstimatedWaitTime(await convertMinutes(data[0].queue_time, data[0].transaction,
-                            data[0].ticket_number))
-                        setReferenceNumber(data[0].reference_number)
-                        setStatus( data[0].status)
-                        subscribeUpdates()
+                    setQueueNumber(String(data[0].ticket_number).padStart(3, "0"))
+                    setTransaction(data[0].transaction)
+                    setEstimatedWaitTime(await convertMinutes(data[0].queue_time, data[0].transaction,
+                        data[0].ticket_number))
+                    setReferenceNumber(data[0].reference_number)
+                    setStatus(data[0].status)
+                    subscribeUpdates()
                 } else {
                     setHasTicket(false);
                 }
@@ -86,49 +86,53 @@ function Ticket({ navigation }) {
 
     function subscribeUpdates() {
         const tickets = supabase.channel('custom-update-channel')
-        .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'tickets' },
-            (payload) => {
-                const { email, status } = payload.new; // Extract email and status from the updated record
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'tickets' },
+                (payload) => {
+                    const { email, status } = payload.new; // Extract email and status from the updated record
 
-                // Compare the payload email with the logged-in user's email
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (session && email === session.user.email) {
-                        alert("Your ticket status has been updated: " + status); // Alert the user only if it's their ticket
-                        setStatus(status);
-                    }
-                })
-            }
-        )
-        .subscribe()
+                    // Compare the payload email with the logged-in user's email
+                    supabase.auth.getSession().then(({ data: { session } }) => {
+                        if (session && email === session.user.email) {
+                            alert("Your ticket status has been updated: " + status); // Alert the user only if it's their ticket
+                            setStatus(status);
+                        }
+                    })
+                }
+            )
+            .subscribe()
     }
 
     async function findRef() {
         const { data, error } = await supabase
-        .from("tickets")
-        .select(
-          "ticket_number, transaction, queue_time, reference_number, status, queue_date"
-        )
-        .eq("reference_number", referenceNumber);
+            .from("tickets")
+            .select(
+                "ticket_number, transaction, queue_time, reference_number, status, queue_date"
+            )
+            .eq("reference_number", referenceNumber);
 
-      if (data && data.length > 0) {
-        setQueueNumber(String(data[0].ticket_number).padStart(3, "0"));
-        setTransaction(data[0].transaction)
-        setEstimatedWaitTime(await convertMinutes(data[0].queue_time, data[0].transaction,
-            data[0].ticket_number))
-        setReferenceNumber(data[0].reference_number)
-        setStatus( data[0].status)
-      }
-      setHasTicket(true);
+        if (data && data.length > 0) {
+            setQueueNumber(String(data[0].ticket_number).padStart(3, "0"));
+            setTransaction(data[0].transaction)
+            setEstimatedWaitTime(await convertMinutes(data[0].queue_time, data[0].transaction,
+                data[0].ticket_number))
+            setReferenceNumber(data[0].reference_number)
+            setStatus(data[0].status)
+        }
+        setHasTicket(true);
     }
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.headerContainer}>
                 <View style={styles.header}>
-                    <Image source={require('../assets/lightLineupLogo.png')} />
-                    <Image source={require('../assets/menu.png')} />
+                    <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+                        <Image source={require('../assets/lightLineupLogo.png')} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={alert}>
+                        <Image source={require('../assets/logout.png')} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -164,9 +168,12 @@ function Ticket({ navigation }) {
                                 </View>
                             </View>
                         </View>
-                        <TouchableOpacity onPress={findRef}>
-                            <Image source={require('../assets/refresh.png')} style={styles.refreshButton} />
-                        </TouchableOpacity>
+                        <View style={{ flex: 1, }}>
+
+                            <TouchableOpacity onPress={findRef}>
+                                <Image source={require('../assets/refresh.png')} style={styles.refreshButton} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 ) : (
                     // Enter Reference Number UI
@@ -183,7 +190,7 @@ function Ticket({ navigation }) {
                                 />
                                 <TouchableOpacity style={styles.ticketButtonContainer}>
                                     <Text style={styles.ticketButton}
-                                     onPress={findRef}>Confirm</Text>
+                                        onPress={findRef}>Confirm</Text>
                                 </TouchableOpacity>
                                 <Text
                                     style={{
@@ -197,7 +204,7 @@ function Ticket({ navigation }) {
                                 </Text>
                                 <TouchableOpacity style={styles.ticketButtonContainer}>
                                     <Text style={styles.ticketButton}
-                                    onPress={() => navigation.navigate('Schedule')}>Queue Now</Text>
+                                        onPress={() => navigation.navigate('Schedule')}>Queue Now</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -256,7 +263,7 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 5,
         borderColor: 'black',
-        paddingVertical: 50,
+        paddingVertical: 30,
         alignItems: 'center',
         justifyContent: 'center',
     },

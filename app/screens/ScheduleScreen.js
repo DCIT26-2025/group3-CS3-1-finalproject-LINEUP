@@ -12,7 +12,18 @@ const ScheduleScreen = ({ navigation }) => {
     const [isModalVisible, setModalVisible] = useState(false);
     const [selectedDayIndex, setSelectedDayIndex] = useState(null);
     const [isViewModalVisible, setViewModalVisible] = useState(false);
-    const [selectedSpecificService, setSelectedSpecificService] = useState(null); // New state to track selected specific service
+    const [selectedSpecificService, setSelectedSpecificService] = useState(null);
+    const [disabledDays, setDisabledDays] = useState(Array(7).fill(false)); // New state for disabled days
+
+    const handleToggleDay = (index) => {
+        const updatedDisabledDays = [...disabledDays];
+        updatedDisabledDays[index] = !updatedDisabledDays[index];
+        setDisabledDays(updatedDisabledDays);
+    };
+
+    const disableDays = [1, 6]; // Example: Disable Sunday (index 0) and Saturday (index 6)
+    const updatedDisabledDays = disabledDays.map((_, index) => disableDays.includes(index));
+    
 
     const selectServiceForDay = (dayIndex, service) => {
         const newSelectedServices = [...selectedServices];
@@ -36,37 +47,37 @@ const ScheduleScreen = ({ navigation }) => {
         }
     };
 
-        const [mainservice, setServices] = useState([
-          { id: 1, key: "Licensing", limit: "DriverLicenseLimit"},
-          { id: 2, key: "Registration", limit: "VehicleRegistrationLimit"},
-          { id: 3, key: "LETAS", limit: "LawEnforcementLimit"},
-        ]);
-      
-        const [serviceCounts, setServiceCounts] = useState({});
-        const [serviceLimits, setServiceLimits] = useState({});
-        const [error, setError] = useState(null);
-    
+    const [mainservice, setServices] = useState([
+        { id: 1, key: "Licensing", limit: "DriverLicenseLimit" },
+        { id: 2, key: "Registration", limit: "VehicleRegistrationLimit" },
+        { id: 3, key: "LETAS", limit: "LawEnforcementLimit" },
+    ]);
+
+    const [serviceCounts, setServiceCounts] = useState({});
+    const [serviceLimits, setServiceLimits] = useState({});
+    const [error, setError] = useState(null);
+
     useEffect(() => {
         const fetchQueue = async () => {
-            
+
             const today = new Date();
             const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
             const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
             const manilaTime = new Date(utcDate.getTime() + manilaOffset);
-            
+
             const dateRanges = Array.from({ length: 7 }, (_, i) => {
                 const currentDay = new Date(manilaTime);
-                currentDay.setDate(manilaTime.getDate() + i );
+                currentDay.setDate(manilaTime.getDate() + i);
                 const start = new Date(currentDay);
                 start.setUTCHours(0, 0, 0, 0);
                 const end = new Date(currentDay);
                 end.setUTCHours(23, 59, 59, 999);
                 return { start, end };
-              });
+            });
 
             const { data: tickets, error: ticketError } = await supabase
-            .from("tickets")
-            .select("service_id, parent_service_id, queue_date");
+                .from("tickets")
+                .select("service_id, parent_service_id, queue_date");
 
             if (ticketError) {
                 console.error("Error fetching tickets:", error);
@@ -76,27 +87,27 @@ const ScheduleScreen = ({ navigation }) => {
             // Process tickets locally
             const countsByService = {};
             mainservice.forEach((service) => {
-            const counts = Array(7).fill(0);
-            dateRanges.forEach((range, i) => {
-                counts[i] = tickets.filter((ticket) => {
-                const queueDate = new Date(ticket.queue_date);
-                return (
-                    (ticket.service_id === service.id ||
-                    ticket.parent_service_id === service.id) &&
-                    queueDate >= new Date(range.start) &&
-                    queueDate <= new Date(range.end)
-                );
-                }).length;
-            });
-            countsByService[service.key] = counts;
+                const counts = Array(7).fill(0);
+                dateRanges.forEach((range, i) => {
+                    counts[i] = tickets.filter((ticket) => {
+                        const queueDate = new Date(ticket.queue_date);
+                        return (
+                            (ticket.service_id === service.id ||
+                                ticket.parent_service_id === service.id) &&
+                            queueDate >= new Date(range.start) &&
+                            queueDate <= new Date(range.end)
+                        );
+                    }).length;
+                });
+                countsByService[service.key] = counts;
             });
 
             setServiceCounts(countsByService);
 
             // Fetch Limits
             const { data: limits, error: limitError } = await supabase
-            .from("queue_schedules")
-            .select("date, service_name, limit");
+                .from("queue_schedules")
+                .select("date, service_name, limit");
 
             if (limitError) {
                 console.error("Error fetching limits:", error);
@@ -110,12 +121,12 @@ const ScheduleScreen = ({ navigation }) => {
             const month = String(date.getMonth() + 1).padStart(2, "0");
             const formattedQueueDate = `${year}-${month}-${day}`;
             const startDate = new Date(formattedQueueDate);
-            const daysRange = 7; 
+            const daysRange = 7;
 
             const newLimits = {};
             mainservice.forEach((service) => {
                 newLimits[service.limit] = new Array(daysRange).fill(0);
-            
+
                 limits
                     .filter((item) => item.service_name + "Limit" === service.limit)
                     .forEach((item) => {
@@ -134,40 +145,41 @@ const ScheduleScreen = ({ navigation }) => {
     }, [])
 
     useEffect(() => {
+        setDisabledDays(updatedDisabledDays);
         const fetchService = async () => {
             let parent_id;
 
             if (selectedServices[0] === "Licensing") {
-              parent_id = 1;
+                parent_id = 1;
             } else if (selectedServices[0] === "Registration") {
-              parent_id = 2;
+                parent_id = 2;
             } else if (selectedServices[0] === "LETAS") {
-              parent_id = 3;
+                parent_id = 3;
             }
             const { data, error } = await supabase
-              .from("services")
-              .select("service_name")
-              .eq("parent_service_id", parent_id);
+                .from("services")
+                .select("service_name")
+                .eq("parent_service_id", parent_id);
 
             setspecificServices(data.map(service => service.service_name));
         }
         fetchService()
     }, [selectedServices])
 
-    useEffect (() => {
+    useEffect(() => {
         const fetchTicket = async () => {
-            const {data: { session }} = await supabase.auth.getSession();
+            const { data: { session } } = await supabase.auth.getSession();
 
             if (session) {
                 const { data, error } = await supabase
-                .from("tickets")
-                .select(
-                    "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
-                )
-                .eq("email", session.user.email);
-                
+                    .from("tickets")
+                    .select(
+                        "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
+                    )
+                    .eq("email", session.user.email);
+
                 if (data && data.length > 0) {
-                        subscribeUpdates()
+                    subscribeUpdates()
                 } else {
                     setHasTicket(false);
                 }
@@ -178,21 +190,21 @@ const ScheduleScreen = ({ navigation }) => {
 
     function subscribeUpdates() {
         const tickets = supabase.channel('custom-update-channel')
-        .on(
-            'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'tickets' },
-            (payload) => {
-                const { email, status } = payload.new; // Extract email and status from the updated record
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'tickets' },
+                (payload) => {
+                    const { email, status } = payload.new; // Extract email and status from the updated record
 
-                // Compare the payload email with the logged-in user's email
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                    if (session && email === session.user.email) {
-                        alert("Your ticket status has been updated: " + status); // Alert the user only if it's their ticket
-                    }
-                })
-            }
-        )
-        .subscribe()
+                    // Compare the payload email with the logged-in user's email
+                    supabase.auth.getSession().then(({ data: { session } }) => {
+                        if (session && email === session.user.email) {
+                            alert("Your ticket status has been updated: " + status); // Alert the user only if it's their ticket
+                        }
+                    })
+                }
+            )
+            .subscribe()
     }
 
     async function insertTicket() {
@@ -204,7 +216,7 @@ const ScheduleScreen = ({ navigation }) => {
             .from("tickets")
             .select("email")
             .eq("email", session.user.email);
-        
+
         if (checkUser.length !== 0) {
             alert("You already queued!")
             return
@@ -218,15 +230,15 @@ const ScheduleScreen = ({ navigation }) => {
         const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
         const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
         const manilaTime = new Date(utcDate.getTime() + manilaOffset);
-        
-        const dateString = manilaTime.toISOString().split('T')[0]; 
+
+        const dateString = manilaTime.toISOString().split('T')[0];
 
         const { data, error: specificError } = await supabase
-          .from("services")
-          .select(
-            "service_id, parent_service_id, service_name, transaction_time"
-          )
-          .eq("service_name",selectedSpecificService);
+            .from("services")
+            .select(
+                "service_id, parent_service_id, service_name, transaction_time"
+            )
+            .eq("service_name", selectedSpecificService);
 
         parent_service = data[0].parent_service_id;
         service = data[0].service_id;
@@ -234,33 +246,35 @@ const ScheduleScreen = ({ navigation }) => {
         queue_time = data[0].transaction_time;
 
         const { count, error: countError } = await supabase
-          .from("tickets")
-          .select("service_id", { count: "exact", head: true })
-          .eq("parent_service_id", parent_service)
-          .gte("queue_date", `${dateString} 00:00:00`)
-          .lte("queue_date", `${dateString} 23:59:59`);
+            .from("tickets")
+            .select("service_id", { count: "exact", head: true })
+            .eq("parent_service_id", parent_service)
+            .gte("queue_date", `${dateString} 00:00:00`)
+            .lte("queue_date", `${dateString} 23:59:59`);
 
         const { error } = await supabase.from("tickets").insert({
-          ticket_number: count + 1,
-          service_id: service,
-          parent_service_id: parent_service,
-          email: session.user.email,
-          queue_date: dateString,
-          transaction: transaction,
-          status: "Pending",
-          queue_time: queue_time,
-          reference_number: Math.floor(Math.random() * 900000) + 100000,
+            ticket_number: count + 1,
+            service_id: service,
+            parent_service_id: parent_service,
+            email: session.user.email,
+            queue_date: dateString,
+            transaction: transaction,
+            status: "Pending",
+            queue_time: queue_time,
+            reference_number: Math.floor(Math.random() * 900000) + 100000,
         })
         setModalVisible(false)
-        setViewModalVisible(true)
+        setViewModalVisible(false)
     }
 
     const generateCardContent = (day, date, dayIndex) => (
+        
         <View style={{ flex: 1 }}>
             <View style={styles.card}>
                 <View style={styles.queue}>
                     <View style={styles.rowAlign}>
-                        <View style={styles.dateContainer}>
+                        <View style={disabledDays ? styles.dateContainer : styles.disabledCard}>
+
                             <Text style={styles.dayText}>{day}</Text>
                             <Text style={styles.dateText}>{date}</Text>
                         </View>
@@ -297,14 +311,20 @@ const ScheduleScreen = ({ navigation }) => {
                         const queueLimit = serviceLimits[limitKey]?.[dayIndex] || 100; // Default limit to 100 if undefined
                         const queueColor = queueNumber < queueLimit * 0.5 ? 'green' : queueNumber < queueLimit * 0.9 ? 'orange' : 'red';
                         const isSelected = selectedServices[dayIndex] === serviceKey;
-    
+
                         return (
                             <TouchableOpacity
                                 key={index}
                                 style={[
-                                    styles.serviceBox,
-                                    { backgroundColor: isSelected ? colors.darkBlue : colors.lightBlue }
+                                    styles.serviceBox, 
+                                    { 
+                                        backgroundColor: disabledDays[dayIndex] 
+                                            ? colors.grayBorder
+                                            : (isSelected ? colors.darkBlue : colors.lightBlue), 
+                                        pointerEvents: disabledDays[dayIndex] ? 'none' : 'auto'  // Corrected here
+                                    }
                                 ]}
+                                
                                 onPress={() => selectServiceForDay(dayIndex, serviceKey)}
                             >
                                 <Text style={styles.serviceName}>{serviceKey}</Text>
@@ -320,7 +340,7 @@ const ScheduleScreen = ({ navigation }) => {
             <View style={{ flex: 1 }}></View>
         </View>
     );
-    
+
 
     const handleSpecificServiceSelect = (specificService) => {
         setSelectedSpecificService(specificService); // Set selected specific service
@@ -329,8 +349,19 @@ const ScheduleScreen = ({ navigation }) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Image source={require('../assets/lightLineupLogo.png')} />
-                <Image source={require('../assets/menu.png')} />
+                <View style={{ flex: 2 }}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+                        <Image source={require('../assets/lightLineupLogo.png')} />
+                    </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={styles.whiteText} onPress={() => navigation.navigate('Ticket')}>
+                        MyTicket
+                    </Text>
+                    <TouchableOpacity onPress={alert}>
+                        <Image source={require('../assets/logout.png')} />
+                    </TouchableOpacity>
+                </View>
             </View>
             <View style={styles.body}>
                 <Text style={styles.title}>Schedule</Text>
@@ -670,6 +701,22 @@ const styles = StyleSheet.create({
         backgroundColor: colors.baseBlue,
         padding: 30,
     },
+    whiteText: {
+        color: colors.white,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    disabledCard: {
+        opacity: 0.5,
+        pointerEvents: 'none',
+        flex: 1,
+    },
+
+    disabledBtn: {
+        backgroundColor: '#ccc',
+
+    }
+
 });
 
 export default ScheduleScreen;
