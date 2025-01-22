@@ -75,6 +75,7 @@ function Ticket({ navigation }) {
                             data[0].ticket_number))
                         setReferenceNumber(data[0].reference_number)
                         setStatus( data[0].status)
+                        subscribeUpdates()
                 } else {
                     setHasTicket(false);
                 }
@@ -82,6 +83,26 @@ function Ticket({ navigation }) {
         }
         fetchTicket()
     }, [])
+
+    function subscribeUpdates() {
+        const tickets = supabase.channel('custom-update-channel')
+        .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'tickets' },
+            (payload) => {
+                const { email, status } = payload.new; // Extract email and status from the updated record
+
+                // Compare the payload email with the logged-in user's email
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    if (session && email === session.user.email) {
+                        alert("Your ticket status has been updated: " + status); // Alert the user only if it's their ticket
+                        setStatus(status);
+                    }
+                })
+            }
+        )
+        .subscribe()
+    }
 
     async function findRef() {
         const { data, error } = await supabase

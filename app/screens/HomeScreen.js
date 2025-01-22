@@ -45,7 +45,6 @@ function HomeScreen({ navigation }) {
             
             const dateString = manilaTime.toISOString().split('T')[0]; 
 
-            console.log(manilaTime)
             const { count, error } = await supabase
             .from("tickets")
             .select("ticket_id", { count: "exact", head: true })
@@ -60,6 +59,45 @@ function HomeScreen({ navigation }) {
         }
         fetchQueue()
     }, [])
+
+        useEffect (() => {
+            const fetchTicket = async () => {
+                const {data: { session }} = await supabase.auth.getSession();
+    
+                if (session) {
+                    const { data, error } = await supabase
+                    .from("tickets")
+                    .select(
+                        "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
+                    )
+                    .eq("email", session.user.email);
+                    
+                    if (data && data.length > 0) {
+                            subscribeUpdates()
+                    } 
+                }
+            }
+            fetchTicket()
+        }, [])
+    
+        function subscribeUpdates() {
+            const tickets = supabase.channel('custom-update-channel')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'tickets' },
+                (payload) => {
+                    const { email, status } = payload.new; // Extract email and status from the updated record
+    
+                    // Compare the payload email with the logged-in user's email
+                    supabase.auth.getSession().then(({ data: { session } }) => {
+                        if (session && email === session.user.email) {
+                            alert("Your ticket status has been updated:  " + status); // Alert the user only if it's their ticket
+                        }
+                    })
+                }
+            )
+            .subscribe()
+        }
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar />
