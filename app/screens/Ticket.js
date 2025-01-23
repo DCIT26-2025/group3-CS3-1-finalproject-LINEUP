@@ -12,28 +12,9 @@ function Ticket({ navigation }) {
     const [status, setStatus] = useState('');
 
     async function signoff() {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
-            alert("You are not logged in.");
-            return;
-        }
-    
-        try {
-            const { error } = await supabase.auth.signOut();
-    
-            if (error) {
-                // Display the error message
-                alert(`Error signing out: ${error.message || JSON.stringify(error)}`);
-            } else {
-                console.log("Signed off successfully");
-                // Navigate to the Login screen after sign-off
-                navigation.navigate('Login');
-            }
-        } catch (error) {
-            console.error("Signoff failed:", error);
-            alert(`Signoff failed: ${error.message || JSON.stringify(error)}`);
-        }
+        await supabase.auth.signOut()
+        alert('You have been logged out.');
+        navigation.navigate("Login");
     }
 
     async function convertMinutes(minutes, transaction, ticket_number) {
@@ -91,7 +72,9 @@ function Ticket({ navigation }) {
                     .select(
                         "email, ticket_number, transaction, queue_time, reference_number, status, time_generated, queue_date"
                     )
-                    .eq("email", session.user.email);
+                    .eq("email", session.user.email)
+                    .neq("status", "Complete")
+                    .neq("status", "Reject");
 
                 if (data && data.length > 0) {
                     setQueueNumber(String(data[0].ticket_number).padStart(3, "0"))
@@ -135,7 +118,9 @@ function Ticket({ navigation }) {
             .select(
                 "ticket_number, transaction, queue_time, reference_number, status, queue_date"
             )
-            .eq("reference_number", referenceNumber);
+            .eq("reference_number", referenceNumber)
+            .neq("status", "Complete")
+            .neq("status", "Reject");
 
         if (data && data.length > 0) {
             setQueueNumber(String(data[0].ticket_number).padStart(3, "0"));

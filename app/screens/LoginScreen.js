@@ -94,7 +94,7 @@ export default function LoginScreen({ navigation }) {
         } catch (error) {
           console.error('Unexpected error during Google sign-in:', error.message);
         }
-      };      
+      };  
       
     if (!fontsLoaded) {
         return (

@@ -22,28 +22,9 @@ function HomeScreen({ navigation }) {
     const [currentPage, setCurrentPage] = useState(0);
     
     async function signoff() {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
-            alert("You are not logged in.");
-            return;
-        }
-    
-        try {
-            const { error } = await supabase.auth.signOut();
-            
-            if (error) {
-                // Display the error message
-                alert(`Error signing out: ${error.message || JSON.stringify(error)}`);
-            } else {
-                console.log("Signed off successfully");
-                // Navigate to the Login screen after sign-off
-                navigation.navigate('Login');
-            }
-        } catch (error) {
-            console.error("Signoff failed:", error);
-            alert(`Signoff failed: ${error.message || JSON.stringify(error)}`);
-        }
+        await supabase.auth.signOut()
+        alert('You have been logged out.');
+        navigation.navigate("Login");
     }
 
     useEffect(() => {

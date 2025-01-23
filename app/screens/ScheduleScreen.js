@@ -15,16 +15,6 @@ const ScheduleScreen = ({ navigation }) => {
     const [selectedSpecificService, setSelectedSpecificService] = useState(null);
     const [disabledDays, setDisabledDays] = useState(Array(7).fill(false)); // New state for disabled days
 
-    const handleToggleDay = (index) => {
-        const updatedDisabledDays = [...disabledDays];
-        updatedDisabledDays[index] = !updatedDisabledDays[index];
-        setDisabledDays(updatedDisabledDays);
-    };
-
-    const disableDays = [2, 3]; // Example: Disable Sunday (index 0) and Saturday (index 6)
-    const updatedDisabledDays = disabledDays.map((_, index) => disableDays.includes(index));
-    
-
     const selectServiceForDay = (dayIndex, service) => {
         const newSelectedServices = [...selectedServices];
         newSelectedServices[dayIndex] = service;
@@ -58,28 +48,9 @@ const ScheduleScreen = ({ navigation }) => {
     const [error, setError] = useState(null);
 
     async function signoff() {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (!session) {
-            alert("You are not logged in.");
-            return;
-        }
-    
-        try {
-            const { error } = await supabase.auth.signOut();
-    
-            if (error) {
-                // Display the error message
-                alert(`Error signing out: ${error.message || JSON.stringify(error)}`);
-            } else {
-                console.log("Signed off successfully");
-                // Navigate to the Login screen after sign-off
-                navigation.navigate('Login');
-            }
-        } catch (error) {
-            console.error("Signoff failed:", error);
-            alert(`Signoff failed: ${error.message || JSON.stringify(error)}`);
-        }
+        await supabase.auth.signOut();
+        alert('You have been logged out.');
+        navigation.navigate("Login");
     }
 
     useEffect(() => {
@@ -90,6 +61,38 @@ const ScheduleScreen = ({ navigation }) => {
             const utcDate = new Date(today.getTime() + today.getTimezoneOffset() * 60000); // Convert to UTC
             const manilaOffset = 16 * 60 * 60 * 1000; // Manila is UTC+8
             const manilaTime = new Date(utcDate.getTime() + manilaOffset);
+            const endTime = new Date(manilaTime)
+            endTime.setDate(manilaTime.getDate() + 7)
+            
+            const days = [];
+
+            const { data:isDisabled } = await supabase
+            .from("queue_dates")
+            .select("is_disabled")
+        
+            // Fetch data from the `queue_dates` table
+            const { data: queueDates, error } = await supabase
+            .from("queue_dates")
+            .select("date, is_disabled");
+
+            if (error) {
+            console.error("Error fetching queue_dates:", error);
+            } else {
+                
+                for (let d = new Date(manilaTime); d <= endTime; d.setDate(d.getDate() + 1)) {
+                const formattedDate = d.toISOString().split("T")[0]; // Format as yyyy-mm-dd
+                // Check if the current date exists in `queue_dates`
+                const matchingDate = queueDates.find((q) => q.date === formattedDate);
+
+                    if (matchingDate) {
+                        days.push(matchingDate.is_disabled); // Push true or false based on `is_disabled`
+                    } else {
+                        days.push(false); // Default to false if the date is not in the table
+                    }
+                }
+            }
+
+            setDisabledDays(days);
 
             const dateRanges = Array.from({ length: 7 }, (_, i) => {
                 const currentDay = new Date(manilaTime);
@@ -171,7 +174,6 @@ const ScheduleScreen = ({ navigation }) => {
     }, [])
 
     useEffect(() => {
-        setDisabledDays(updatedDisabledDays);
         const fetchService = async () => {
             let parent_id;
 
@@ -234,6 +236,12 @@ const ScheduleScreen = ({ navigation }) => {
     }
 
     async function insertTicket() {
+        const now = new Date();
+        const date = new Date(now);
+        const year = date.getFullYear();
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const formattedQueueDate = `${year}-${month}-${day}`;
         const {
             data: { session }
         } = await supabase.auth.getSession();
@@ -241,7 +249,11 @@ const ScheduleScreen = ({ navigation }) => {
         const { data: checkUser } = await supabase
             .from("tickets")
             .select("email")
-            .eq("email", session.user.email);
+            .eq("email", session.user.email)
+            .gte("queue_date", `${formattedQueueDate} 00:00:00`)
+            .lte("queue_date", `${formattedQueueDate} 23:59:59`)
+            .neq("status", "Complete")
+            .neq("status", "Reject");
 
         if (checkUser.length !== 0) {
             alert("You already queued!")
@@ -290,7 +302,7 @@ const ScheduleScreen = ({ navigation }) => {
             reference_number: Math.floor(Math.random() * 900000) + 100000,
         })
         setModalVisible(false)
-        setViewModalVisible(false)
+        setViewModalVisible(true)
     }
 
     const generateCardContent = (day, date, dayIndex) => (
