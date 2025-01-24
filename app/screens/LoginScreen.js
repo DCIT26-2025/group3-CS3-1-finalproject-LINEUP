@@ -16,6 +16,7 @@ export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [confirmpassword, setConfirmPassword] = useState('')
+    const [loading, setLoading] = useState(false)
 
     async function signInWithEmail() {
         const { error } = await supabase.auth.signInWithPassword({
@@ -31,25 +32,25 @@ export default function LoginScreen({ navigation }) {
     }
 
     async function signUpWithEmail() {
+        setLoading(true)
         const {
-            data: { session },
-            error,
+          data: { session },
+          error,
         } = await supabase.auth.signUp({
-            email: email,
-            password: password,
+          email: email,
+          password: password,
         })
-
+    
         if (error) {
-            alert(error.message) 
+            alert(error.message)
             return
         }
-        if (password == confirmpassword) {
-            if (!session) {
-                alert('You are now registered!') 
-                navigation.navigate('Home')
-            }
-        }
-    }
+        if (session){
+            alert('You are now signed in!')
+            navigation.navigate("Home")
+        } 
+        setLoading(false)
+      }
 
     const googleSignIn = async () => {
         try {
